@@ -1,0 +1,211 @@
+spring.application.name: core-proxy
+server.port: 8081
+
+# LOGSTASH
+logstash:
+  host: elk.poools.top
+  port: 5044
+  service-name: core-proxy
+  app-host: app-host
+  index-name: elastic-id
+
+# LOGGING
+logging:
+  level:
+    root:         INFO
+    top.poools:   DEBUG
+  file:
+    name: application.log
+
+# TOMCAT
+server.tomcat.threads.max: 10000
+server.tomcat.accept-count: 10000
+
+# CORE-PROXY
+core.proxy:
+  use-reserve-pool-host: false      # Указывает, нужно ли использовать резервный хост пула (настройки по пулу находятся в ЛК)
+  tcp-server:
+    port: 3333                      # Порт, который слушает tcp сервер
+    backlog: 100000                 # Количество сокетов в очереди подключений. По умолчанию 5
+    connection:
+      clean-cron: '*/45 * * * * *'  # Запуск шедулера для очистки connections (каждые 45 сек)
+      remove-after: 300             # Время, через которое очищаются connection'ы к серверу, если не создаются шары (s)
+  security:
+    basic-auth-login: 'admin'
+    basic-auth-password: '1cd*(4r3RF4k43saS'
+
+# CACHE
+spring.cache:
+  type: CAFFEINE
+  cache-names: users, miners, pools, default_pool
+  caffeine.spec: maximumSize=100000,expireAfterAccess=7h
+
+# MICROSERVICE
+ms.api:
+  lk:
+    url: '${ms.api.lk.main-url}'                                       # Текущий url ЛК (может меняться с основного на резервный и обратно)
+    main-url: 'http://${ms.api.lk.host}:8888/api/internal'             # Основной url ЛК
+    reserve-url: 'http://${ms.api.lk.reserve.host}:8877/api/internal'  # Резервный url ЛК
+    retry:
+      period: 200
+      maxPeriod: 1000 #ms
+      maxAttempts: 5
+
+# KAFKA
+share:
+  kafka:
+    topic: SHARES_TEST
+
+spring:
+  kafka:
+    security:
+      protocol: SASL_PLAINTEXT
+    bootstrap-servers:
+      - 5.187.1.199:29092
+    properties:
+      sasl:
+        mechanism: PLAIN
+        jaas.config: org.apache.kafka.common.security.plain.PlainLoginModule required username="admin" password="fn3Dd34aga";
+    producer:
+      client-id: shares-producer-client-id
+      retries: 2
+      acks: 1
+      properties:
+        linger.ms: 1000
+        #todo: set batch size
+
+# MONITORING
+management:
+  server.port: 3335                     # Указать порт для метрик (по-умолчанию на том же порту что и приложение)
+  context-path: /admin
+  security.enabled: false
+  endpoints:
+    web:
+      base-path: /admin
+      exposure.include: prometheus        # Включить конечную точку Prometheus
+    metrics.enabled: true
+    prometheus.enabled: true
+  metrics:
+    export:
+      prometheus.enabled: true            # Включить экспорт prometheus
+    tags:
+      application: "${spring.application.name}"
+---
+
+# Профиль для прода EU
+spring.config.activate.on-profile: prod-eu
+
+logstash:
+  app-host: 31.172.71.96
+
+logging:
+  level:
+    top.poools:   INFO
+
+ms.api:
+  lk:
+    host: '136.244.85.36'
+    reserve.host: '31.172.71.96'
+    security:
+      username: 'admin'
+      password: '1cd*(4r3RF4k43saS'
+
+share:
+  kafka:
+    topic: SHARES
+
+core.proxy:
+  use-reserve-pool-host: true
+---
+
+# Профиль для прода RU
+spring.config.activate.on-profile: prod-ru
+
+logstash:
+  app-host: 31.172.70.139
+
+logging:
+  level:
+    top.poools:   INFO
+
+ms.api:
+  lk:
+    host: '136.244.85.36'
+    reserve.host: '31.172.71.96'
+    security:
+      username: 'admin'
+      password: '1cd*(4r3RF4k43saS'
+
+share:
+  kafka:
+    topic: SHARES
+---
+
+# Профиль для теста
+spring.config.activate.on-profile: dev
+
+logstash:
+  app-host: 147.45.253.10
+
+logging:
+  level:
+    top.poools:   DEBUG
+
+ms.api:
+  lk:
+    host: 'localhost'
+    reserve-url:
+
+share:
+  kafka:
+    topic: SHARES_TEST
+
+management:
+  server.port: 3337
+---
+
+# Профиль для локальной машины
+spring.config.activate.on-profile: local
+
+logstash:
+  app-host: localhost
+
+logging:
+  level:
+    top.poools:   DEBUG
+
+ms.api:
+  lk:
+    host: 'localhost'
+    reserve.host: 'localhost'
+
+share:
+  kafka:
+    topic: SHARES_TEST
+---
+
+# Профиль для Infinity
+spring.config.activate.on-profile: infinity
+
+spring:
+  kafka:
+    bootstrap-servers:
+      - 147.45.253.10:9093
+
+logstash:
+  app-host: localhost
+
+logging:
+  level:
+    top.poools:   DEBUG
+
+ms.api:
+  lk:
+    host: '147.45.253.10'
+    reserve.host: '147.45.253.10'
+    security:
+      username: 'admin'
+      password: '1cd*(4r3RF4k43saS'
+share:
+  kafka:
+    topic: SHARES_INFINITY

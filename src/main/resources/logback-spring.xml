@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+  <configuration>
+
+    <springProperty name="LOGSTASH_HOST" source="logstash.host"/>
+    <springProperty name="LOGSTASH_PORT" source="logstash.port"/>
+    <springProperty name="SERVICE_NAME" source="logstash.service-name"/>
+    <springProperty name="HOST" source="logstash.app-host"/>
+    <springProperty name="ELASTICSEARCH_INDEX_NAME" source="logstash.index-name"/>
+
+    <property name="LOGS" value="./logs" />
+
+    <springProfile name="(dev | local | infinity)">
+        <appender name="Console" class="ch.qos.logback.core.ConsoleAppender">
+            <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+                <pattern>%d{yyyy-MM-dd HH:mm:ss:SSS} %highlight(%-5level) %green([%thread]) %blue([%X{connection_id}] [%X{user}] [%X{miner}]) %cyan(%class{36}.%M:%L) | %m %n
+                </pattern>
+                <charset>utf8</charset>
+            </encoder>
+        </appender>
+
+        <root level="DEBUG">
+            <appender-ref ref="Console" />
+        </root>
+    </springProfile>
+
+    <springProfile name="(prod-eu | prod-ru | dev | local | infinity))">
+        <appender name="RollingFile" class="ch.qos.logback.core.rolling.RollingFileAppender">
+            <file>${LOGS}/application.log</file>
+            <encoder class="ch.qos.logback.classic.encoder.PatternLayoutEncoder">
+                <pattern>%d{yyyy-MM-dd HH:mm:ss:SSS} %-5level [%thread] [%X{connection_id}] [%X{user}] [%X{miner}] %class{36}.%M:%L | %m %n
+                </pattern>
+                <charset>utf8</charset>
+            </encoder>
+            <rollingPolicy class="ch.qos.logback.core.rolling.FixedWindowRollingPolicy">
+                <!-- for zip files just add: ${LOGS}/application.%i.log.zip  -->
+                <fileNamePattern>${LOGS}/application.%i.log</fileNamePattern>
+                <minIndex>1</minIndex>
+                <maxIndex>200</maxIndex>
+            </rollingPolicy>
+            <triggeringPolicy class="ch.qos.logback.core.rolling.SizeBasedTriggeringPolicy">
+                <maxFileSize>10MB</maxFileSize>
+            </triggeringPolicy>
+        </appender>
+
+        <root level="DEBUG">
+            <appender-ref ref="RollingFile" />
+        </root>
+    </springProfile>
+
+    <springProfile name="(prod-eu | prod-ru | dev)">
+        <appender name="Logstash" class="net.logstash.logback.appender.LogstashTcpSocketAppender">
+            <destination>${LOGSTASH_HOST}:${LOGSTASH_PORT}</destination>
+            <encoder class="net.logstash.logback.encoder.LogstashEncoder">
+                <customFields>{"app_id":"${SERVICE_NAME}", "app_host":"${HOST}", "index":"${ELASTICSEARCH_INDEX_NAME}"}
+                </customFields>
+            </encoder>
+            <reconnectionDelay>30 second</reconnectionDelay>
+        </appender>
+
+        <root level="DEBUG">
+            <appender-ref ref="Logstash" />
+        </root>
+    </springProfile>
+
+</configuration>
